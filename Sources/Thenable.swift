@@ -10,6 +10,19 @@ public protocol Thenable: class {
 
     /// The resolved result or nil if pending.
     var result: Result<T>? { get }
+
+    var currentQueue: DispatchQueue? { get set }
+}
+
+extension Thenable {
+    func asyncIfNecessary(on queue: DispatchQueue?, flags: DispatchWorkItemFlags?, body: @escaping () -> Void) {
+        if currentQueue != queue {
+            currentQueue = queue
+            queue.async(flags: flags) { body() }
+        } else {
+            body()
+        }
+    }
 }
 
 public extension Thenable {
@@ -35,7 +48,7 @@ public extension Thenable {
         pipe {
             switch $0 {
             case .fulfilled(let value):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     do {
                         let rv = try body(value)
                         guard rv !== rp else { throw PMKError.returnedSelf }
@@ -73,7 +86,7 @@ public extension Thenable {
         pipe {
             switch $0 {
             case .fulfilled(let value):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     do {
                         rp.box.seal(.fulfilled(try transform(value)))
                     } catch {
@@ -100,7 +113,7 @@ public extension Thenable {
         pipe {
             switch $0 {
             case .fulfilled(let value):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     rp.box.seal(.fulfilled(value[keyPath: keyPath]))
                 }
             case .rejected(let error):
@@ -131,7 +144,7 @@ public extension Thenable {
         pipe {
             switch $0 {
             case .fulfilled(let value):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     do {
                         if let rv = try transform(value) {
                             rp.box.seal(.fulfilled(rv))
@@ -162,7 +175,7 @@ public extension Thenable {
         pipe {
             switch $0 {
             case .fulfilled(let value):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     do {
                         if let rv = value[keyPath: keyPath] {
                             rp.box.seal(.fulfilled(rv))
@@ -202,7 +215,7 @@ public extension Thenable {
         pipe {
             switch $0 {
             case .fulfilled(let value):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     do {
                         try body(value)
                         rp.box.seal(.fulfilled(()))
@@ -258,7 +271,7 @@ public extension Thenable {
     func tap(on: DispatchQueue? = conf.Q.map, flags: DispatchWorkItemFlags? = nil, _ body: @escaping(Result<T>) -> Void) -> Promise<T> {
         return Promise { seal in
             pipe { result in
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     body(result)
                     seal.resolve(result)
                 }

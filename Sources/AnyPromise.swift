@@ -9,6 +9,7 @@ import Foundation
 */
 @objc(__AnyPromise) public class __AnyPromise: NSObject {
     fileprivate let box: Box<Any?>
+    public var currentQueue: DispatchQueue?
 
     @objc public init(resolver body: (@escaping (Any?) -> Void) -> Void) {
         box = EmptyBox<Any?>()
@@ -127,6 +128,10 @@ import Foundation
 }
 
 extension AnyPromise: Thenable, CatchMixin {
+    public var currentQueue: DispatchQueue? {
+        get { d.currentQueue }
+        set { d.currentQueue = newValue }
+    }
 
     /// - Returns: A new `AnyPromise` bound to a `Promise<Any>`.
     public convenience init<U: Thenable>(_ bridge: U) {

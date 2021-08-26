@@ -7,6 +7,7 @@ import Dispatch
 */
 public final class Guarantee<T>: Thenable {
     let box: PromiseKit.Box<T>
+    public var currentQueue: DispatchQueue?
 
     fileprivate init(box: SealedBox<T>) {
         self.box = box
@@ -80,7 +81,7 @@ public extension Guarantee {
     func done(on: DispatchQueue? = conf.Q.return, flags: DispatchWorkItemFlags? = nil, _ body: @escaping(T) -> Void) -> Guarantee<Void> {
         let rg = Guarantee<Void>(.pending)
         pipe { (value: T) in
-            on.async(flags: flags) {
+            self.asyncIfNecessary(on: on, flags: flags) {
                 body(value)
                 rg.box.seal(())
             }
@@ -98,7 +99,7 @@ public extension Guarantee {
     func map<U>(on: DispatchQueue? = conf.Q.map, flags: DispatchWorkItemFlags? = nil, _ body: @escaping(T) -> U) -> Guarantee<U> {
         let rg = Guarantee<U>(.pending)
         pipe { value in
-            on.async(flags: flags) {
+            self.asyncIfNecessary(on: on, flags: flags) {
                 rg.box.seal(body(value))
             }
         }
@@ -109,7 +110,7 @@ public extension Guarantee {
     func map<U>(on: DispatchQueue? = conf.Q.map, flags: DispatchWorkItemFlags? = nil, _ keyPath: KeyPath<T, U>) -> Guarantee<U> {
         let rg = Guarantee<U>(.pending)
         pipe { value in
-            on.async(flags: flags) {
+            self.asyncIfNecessary(on: on, flags: flags) {
                 rg.box.seal(value[keyPath: keyPath])
             }
         }
@@ -121,7 +122,7 @@ public extension Guarantee {
     func then<U>(on: DispatchQueue? = conf.Q.map, flags: DispatchWorkItemFlags? = nil, _ body: @escaping(T) -> Guarantee<U>) -> Guarantee<U> {
         let rg = Guarantee<U>(.pending)
         pipe { value in
-            on.async(flags: flags) {
+            self.asyncIfNecessary(on: on, flags: flags) {
                 body(value).pipe(to: rg.box.seal)
             }
         }

@@ -29,7 +29,7 @@ public extension CatchMixin {
                 guard policy == .allErrors || !error.isCancelled else {
                     fallthrough
                 }
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     body(error)
                     finalizer.pending.resolve(())
                 }
@@ -80,7 +80,7 @@ public extension CatchMixin {
                 rp.box.seal(.fulfilled(value))
             case .rejected(let error):
                 if policy == .allErrors || !error.isCancelled {
-                    on.async(flags: flags) {
+                    self.asyncIfNecessary(on: on, flags: flags) {
                         do {
                             let rv = try body(error)
                             guard rv !== rp else { throw PMKError.returnedSelf }
@@ -113,7 +113,7 @@ public extension CatchMixin {
             case .fulfilled(let value):
                 rg.box.seal(value)
             case .rejected(let error):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     body(error).pipe(to: rg.box.seal)
                 }
             }
@@ -141,7 +141,7 @@ public extension CatchMixin {
     func ensure(on: DispatchQueue? = conf.Q.return, flags: DispatchWorkItemFlags? = nil, _ body: @escaping () -> Void) -> Promise<T> {
         let rp = Promise<T>(.pending)
         pipe { result in
-            on.async(flags: flags) {
+            self.asyncIfNecessary(on: on, flags: flags) {
                 body()
                 rp.box.seal(result)
             }
@@ -170,7 +170,7 @@ public extension CatchMixin {
     func ensureThen(on: DispatchQueue? = conf.Q.return, flags: DispatchWorkItemFlags? = nil, _ body: @escaping () -> Guarantee<Void>) -> Promise<T> {
         let rp = Promise<T>(.pending)
         pipe { result in
-            on.async(flags: flags) {
+            self.asyncIfNecessary(on: on, flags: flags) {
                 body().done {
                     rp.box.seal(result)
                 }
@@ -213,7 +213,7 @@ public extension CatchMixin where T == Void {
             case .fulfilled:
                 rg.box.seal(())
             case .rejected(let error):
-                on.async(flags: flags) {
+                self.asyncIfNecessary(on: on, flags: flags) {
                     body(error)
                     rg.box.seal(())
                 }
@@ -239,7 +239,7 @@ public extension CatchMixin where T == Void {
                 rg.box.seal(.fulfilled(()))
             case .rejected(let error):
                 if policy == .allErrors || !error.isCancelled {
-                    on.async(flags: flags) {
+                    self.asyncIfNecessary(on: on, flags: flags) {
                         do {
                             rg.box.seal(.fulfilled(try body(error)))
                         } catch {

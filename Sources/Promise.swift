@@ -7,6 +7,7 @@ import Dispatch
  */
 public final class Promise<T>: Thenable, CatchMixin {
     let box: Box<Result<T>>
+    public var currentQueue: DispatchQueue?
 
     fileprivate init(box: SealedBox<Result<T>>) {
         self.box = box
